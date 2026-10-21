@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request
+from flask import Flask, render_template_string, request, make_response
 import json
 import os
 import datetime
@@ -13,10 +13,9 @@ def verileri_yukle():
     return []
 
 # Kullanım ve arama loglarını kaydetme fonksiyonu
-def log_kaydet(islem_turu, detay=""):
+def log_kaydet(kullanici_adi, islem_turu, detay=""):
     zaman = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ip_adresi = request.headers.get('X-Forwarded-For', request.remote_addr)
-    log_satiri = f"[{zaman}] IP: {ip_adresi} | İşlem: {islem_turu} | Detay: {detay}\n"
+    log_satiri = f"[{zaman}] Kullanıcı: {kullanici_adi} | İşlem: {islem_turu} | Detay: {detay}\n"
     
     with open("kullanim_loglari.txt", "a", encoding="utf-8") as f:
         f.write(log_satiri)
@@ -36,11 +35,21 @@ HTML_TEMPLATE = """
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Logo Destek Kütüphanesi</h1>
         
         <!-- Arama Formu -->
-        <form method="GET" class="mb-8">
-            <div class="flex gap-2">
-                <input type="text" name="q" value="{{ query }}" placeholder="Sorunuzu veya anahtar kelimeyi yazın..." 
-                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-600">
-                <button type="submit" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition">Ara</button>
+        <form method="GET" class="mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="md:col-span-1">
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">ADINIZ SOYADINIZ</label>
+                    <input type="text" name="user_name" value="{{ user_name }}" required placeholder="Örn: Ahmet Yılmaz" 
+                           class="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600">
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">ARAMA</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="q" value="{{ query }}" placeholder="Sorunuzu veya anahtar kelimeyi yazın..." 
+                               class="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600">
+                        <button type="submit" class="bg-purple-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 transition">Ara</button>
+                    </div>
+                </div>
             </div>
         </form>
 
@@ -73,20 +82,27 @@ HTML_TEMPLATE = """
 @app.route('/')
 def index():
     query = request.args.get('q', '').strip()
+    user_name_input = request.args.get('user_name', '').strip()
+    saved_user_name = request.cookies.get('user_name', '')
+
+    user_name = user_name_input or saved_user_name or "İsimsiz Kullanıcı"
+    
     veriler = verileri_yukle()
     
     if query:
-        # Arama yapıldığında log kaydet
-        log_kaydet("ARAMA", query)
+        log_kaydet(user_name, "ARAMA", query)
         sonuçlar = [item for item in veriler if query.lower() in item['question'].lower() or query.lower() in item.get('answer_text', '').lower()]
     else:
-        # Siteye ilk giriş yapıldığında log kaydet
-        log_kaydet("SİTE_GİRİŞİ")
+        if user_name_input:
+            log_kaydet(user_name, "GİRİŞ / İSİM KAYDI")
         sonuçlar = []
-        
-    return render_template_string(HTML_TEMPLATE, sonuçlar=sonuçlar, query=query)
 
-# Raporları / Logları görüntüleme ekranı (Gizli Rapor Sayfası)
+    resp = make_response(render_template_string(HTML_TEMPLATE, sonuçlar=sonuçlar, query=query, user_name=user_name if user_name != "İsimsiz Kullanıcı" else ""))
+    if user_name_input:
+        resp.set_cookie('user_name', user_name_input, max_age=60*60*24*30)  # 30 gün saklar
+    return resp
+
+# Raporları görüntüleme ekranı
 @app.route('/rapor-log')
 def rapor_goruntule():
     if os.path.exists("kullanim_loglari.txt"):
