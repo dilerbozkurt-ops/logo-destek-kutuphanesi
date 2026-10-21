@@ -2,8 +2,12 @@ from flask import Flask, render_template_string, request, make_response
 import json
 import os
 import datetime
+import requests
 
 app = Flask(__name__)
+
+# Google Apps Script Web App URL Adresiniz
+GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbwU8Qps5spwN2c6XrCgXMK_SoNhA94pXgAnMP96I1Ah4Xzwp2dkx7W6b2VY9frn3fY/exec"
 
 # Verileri JSON dosyasından yükle
 def verileri_yukle():
@@ -12,13 +16,20 @@ def verileri_yukle():
             return json.load(f)
     return []
 
-# Kullanım ve arama loglarını kaydetme fonksiyonu
-def log_kaydet(kullanici_adi, islem_turu, detay=""):
+# Logları doğrudan Google E-Tablo'ya gönderen fonksiyon
+def log_gonder(kullanici_adi, islem_turu, detay=""):
     zaman = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_satiri = f"[{zaman}] Kullanıcı: {kullanici_adi} | İşlem: {islem_turu} | Detay: {detay}\n"
-    
-    with open("kullanim_loglari.txt", "a", encoding="utf-8") as f:
-        f.write(log_satiri)
+    payload = {
+        "tarih": zaman,
+        "kullanici": kullanici_adi,
+        "islem": islem_turu,
+        "detay": detay
+    }
+    try:
+        # Google Sheets'e HTTP POST isteği gönderir
+        requests.post(GOOGLE_SHEETS_URL, json=payload, timeout=5)
+    except Exception as e:
+        print("Log gönderme hatası:", e)
 
 # HTML Arayüz Şablonu
 HTML_TEMPLATE = """
@@ -90,26 +101,18 @@ def index():
     veriler = verileri_yukle()
     
     if query:
-        log_kaydet(user_name, "ARAMA", query)
+        # Arama logunu doğrudan Google Sheets'e gönder
+        log_gonder(user_name, "ARAMA", query)
         sonuçlar = [item for item in veriler if query.lower() in item['question'].lower() or query.lower() in item.get('answer_text', '').lower()]
     else:
         if user_name_input:
-            log_kaydet(user_name, "GİRİŞ / İSİM KAYDI")
+            log_gonder(user_name, "GİRİŞ / İSİM KAYDI")
         sonuçlar = []
 
     resp = make_response(render_template_string(HTML_TEMPLATE, sonuçlar=sonuçlar, query=query, user_name=user_name if user_name != "İsimsiz Kullanıcı" else ""))
     if user_name_input:
         resp.set_cookie('user_name', user_name_input, max_age=60*60*24*30)  # 30 gün saklar
     return resp
-
-# Raporları görüntüleme ekranı
-@app.route('/rapor-log')
-def rapor_goruntule():
-    if os.path.exists("kullanim_loglari.txt"):
-        with open("kullanim_loglari.txt", "r", encoding="utf-8") as f:
-            loglar = f.readlines()
-        return f"<pre style='font-family: monospace; padding: 20px;'>{''.join(loglar)}</pre>"
-    return "Henüz kaydedilmiş bir kullanım kaydı bulunmuyor."
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
