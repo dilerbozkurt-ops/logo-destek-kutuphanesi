@@ -26,8 +26,8 @@ def log_gonder(kullanici_adi, islem_turu, detay=""):
         "detay": detay
     }
     try:
-        # Google Sheets'e HTTP POST isteği gönderir
-        requests.post(GOOGLE_SHEETS_URL, json=payload, timeout=5)
+        response = requests.post(GOOGLE_SHEETS_URL, json=payload, timeout=10)
+        print("Google Yanıtı:", response.text) # Render loglarında göreceğiz
     except Exception as e:
         print("Log gönderme hatası:", e)
 
