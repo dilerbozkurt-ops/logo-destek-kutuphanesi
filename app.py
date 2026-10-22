@@ -27,11 +27,11 @@ def log_gonder(kullanici_adi, islem_turu, detay=""):
     }
     try:
         response = requests.post(GOOGLE_SHEETS_URL, json=payload, timeout=10)
-        print("Google Yanıtı:", response.text) # Render loglarında göreceğiz
+        print("Google Yanıtı:", response.text)
     except Exception as e:
         print("Log gönderme hatası:", e)
 
-# HTML Arayüz Şablonu
+# HTML Arayüz Şablonu (Filtreler Dropdown Entegre Edilmiş Hali)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -40,32 +40,81 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logo Destek Kütüphanesi</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #ffffff;
+            min-width: 220px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            padding: 12px;
+            z-index: 1000;
+            border: 1px solid #e2e8f0;
+        }
+        .dropdown.active .dropdown-content { display: block; }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen py-8 px-4">
     <div class="max-w-5xl mx-auto">
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Logo Destek Kütüphanesi</h1>
         
-        <!-- Arama Formu -->
-        <form method="GET" class="mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div class="md:col-span-1">
+        <!-- Arama ve Filtreleme Formu -->
+        <form method="GET" action="/" id="searchForm" class="mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                
+                <!-- Ad Soyad -->
+                <div class="md:col-span-3">
                     <label class="block text-xs font-semibold text-gray-500 mb-1">ADINIZ SOYADINIZ</label>
                     <input type="text" name="user_name" value="{{ user_name }}" required placeholder="Örn: Ahmet Yılmaz" 
                            class="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600">
                 </div>
-                <div class="md:col-span-3">
+
+                <!-- Arama Kutusu -->
+                <div class="md:col-span-5">
                     <label class="block text-xs font-semibold text-gray-500 mb-1">ARAMA</label>
-                    <div class="flex gap-2">
-                        <input type="text" name="q" value="{{ query }}" placeholder="Sorunuzu veya anahtar kelimeyi yazın..." 
-                               class="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600">
-                        <button type="submit" class="bg-purple-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 transition">Ara</button>
+                    <input type="text" name="q" value="{{ query }}" placeholder="Sorunuzu veya anahtar kelimeyi yazın..." 
+                           class="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600">
+                </div>
+
+                <!-- Filtreler Dropdown Butonu -->
+                <div class="md:col-span-2 relative">
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">KATEGORİ/PROJE</label>
+                    <div class="dropdown w-full">
+                        <button type="button" id="dropbtn" class="w-full bg-gray-50 text-gray-700 border border-gray-300 px-3 py-2.5 rounded-lg text-sm font-medium flex justify-between items-center hover:bg-gray-100">
+                            <span>🔍 Filtreler</span>
+                            <span class="text-xs">▼</span>
+                        </button>
+                        <div class="dropdown-content" id="dropdownMenu">
+                            <h4 class="text-xs font-bold text-purple-700 uppercase mb-2">PROJE</h4>
+                            {% for proj in ['Vestel', 'Samsung', 'Bsh', 'Genel'] %}
+                            <label class="block text-xs text-gray-700 mb-1 cursor-pointer">
+                                <input type="checkbox" name="proj" value="{{ proj }}" {% if proj in selected_projs %}checked{% endif %} class="mr-1.5"> {{ proj }}
+                            </label>
+                            {% endfor %}
+
+                            <h4 class="text-xs font-bold text-purple-700 uppercase mt-3 mb-2">KATEGORİ</h4>
+                            {% for tag in ['Payer', 'E2e', 'Ökc', 'B.Transfer', 'İnterpay', 'S.Online', 'Ceva/Sub', 'E-Devlet', 'Ahb'] %}
+                            <label class="block text-xs text-gray-700 mb-1 cursor-pointer">
+                                <input type="checkbox" name="tag" value="{{ tag }}" {% if tag in selected_tags %}checked{% endif %} class="mr-1.5"> {{ tag }}
+                            </label>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
+
+                <!-- Ara Butonu -->
+                <div class="md:col-span-2">
+                    <button type="submit" class="w-full bg-purple-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 transition">Ara</button>
+                </div>
+
             </div>
         </form>
 
-        {% if query %}
-            <p class="text-gray-600 mb-4">"<strong>{{ query }}</strong>" için {{ sonuçlar|length }} sonuç bulundu.</p>
+        {% if query or selected_projs or selected_tags %}
+            <p class="text-gray-600 mb-4">Sonuçlar için <strong>{{ sonuçlar|length }}</strong> kayıt bulundu.</p>
         {% endif %}
 
         <!-- Kart Yapısı -->
@@ -80,12 +129,35 @@ HTML_TEMPLATE = """
                 </button>
             </div>
             {% else %}
-                {% if query %}
-                    <p class="text-center text-gray-500 mt-8">Aramanızla eşleşen bir kayıt bulunamadı.</p>
+                {% if query or selected_projs or selected_tags %}
+                    <p class="text-center text-gray-500 mt-8">Aramanızla veya seçtiğiniz filtrelerle eşleşen bir kayıt bulunamadı.</p>
                 {% endif %}
             {% endfor %}
         </div>
     </div>
+
+    <script>
+        // Dropdown menü açma / kapatma
+        const dropbtn = document.getElementById('dropbtn');
+        const dropdown = document.querySelector('.dropdown');
+
+        if (dropbtn) {
+            dropbtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdown.classList.toggle('active');
+            });
+        }
+
+        document.addEventListener('click', function() {
+            if (dropdown) dropdown.classList.remove('active');
+        });
+
+        if (dropdown) {
+            dropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        }
+    </script>
 </body>
 </html>
 """
@@ -94,24 +166,49 @@ HTML_TEMPLATE = """
 def index():
     query = request.args.get('q', '').strip()
     user_name_input = request.args.get('user_name', '').strip()
+    selected_projs = request.args.getlist('proj')
+    selected_tags = request.args.getlist('tag')
+    
     saved_user_name = request.cookies.get('user_name', '')
-
     user_name = user_name_input or saved_user_name or "İsimsiz Kullanıcı"
     
     veriler = verileri_yukle()
-    
-    if query:
-        # Arama logunu doğrudan Google Sheets'e gönder
-        log_gonder(user_name, "ARAMA", query)
-        sonuçlar = [item for item in veriler if query.lower() in item['question'].lower() or query.lower() in item.get('answer_text', '').lower()]
+    sonuçlar = []
+
+    if query or selected_projs or selected_tags:
+        # Arama ve filtreleme detayını loglama için hazırla
+        log_detay = f"Sorgu: {query} | Projeler: {','.join(selected_projs)} | Etiketler: {','.join(selected_tags)}"
+        log_gonder(user_name, "ARAMA", log_detay)
+
+        for item in veriler:
+            item_text = (item.get('question', '') + " " + item.get('answer_text', '') + " " + item.get('answer_html', '')).lower()
+            
+            # Arama metni kontrolü
+            matches_query = not query or query.lower() in item_text
+
+            # Proje kontrolü
+            matches_proj = not selected_projs or any(p.lower() in item_text for p in selected_projs)
+
+            # Kategori/Etiket kontrolü
+            matches_tag = not selected_tags or any(t.lower() in item_text for t in selected_tags)
+
+            if matches_query and matches_proj and matches_tag:
+                sonuçlar.append(item)
     else:
         if user_name_input:
             log_gonder(user_name, "GİRİŞ / İSİM KAYDI")
-        sonuçlar = []
 
-    resp = make_response(render_template_string(HTML_TEMPLATE, sonuçlar=sonuçlar, query=query, user_name=user_name if user_name != "İsimsiz Kullanıcı" else ""))
+    resp = make_response(render_template_string(
+        HTML_TEMPLATE, 
+        sonuçlar=sonuçlar, 
+        query=query, 
+        user_name=user_name if user_name != "İsimsiz Kullanıcı" else "",
+        selected_projs=selected_projs,
+        selected_tags=selected_tags
+    ))
+    
     if user_name_input:
-        resp.set_cookie('user_name', user_name_input, max_age=60*60*24*30)  # 30 gün saklar
+        resp.set_cookie('user_name', user_name_input, max_age=60*60*24*30)
     return resp
 
 if __name__ == '__main__':
