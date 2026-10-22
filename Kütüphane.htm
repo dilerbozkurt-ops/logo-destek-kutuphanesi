@@ -24,22 +24,47 @@
             gap: 10px;
             margin-bottom: 20px;
             align-items: center;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            flex-wrap: wrap;
         }
-        #search {
-            flex: 1;
+        .header input[type="text"], .header input[type="search"] {
             padding: 12px 16px;
             font-size: 15px;
             border: 1px solid #dcdfe6;
             border-radius: 8px;
             outline: none;
         }
+        #kullaniciInput {
+            width: 200px;
+        }
+        #search {
+            flex: 1;
+            min-width: 250px;
+        }
+        .btn-ara {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-ara:hover {
+            opacity: 0.9;
+        }
+
         /* Dropdown Stilleri */
         .dropdown {
             position: relative;
             display: inline-block;
         }
         .dropbtn {
-            background-color: #f8f9fa;
+            background-color: #fff;
             color: #2c3e50;
             padding: 12px 16px;
             font-size: 14px;
@@ -65,6 +90,7 @@
             padding: 12px;
             z-index: 1000;
             border: 1px solid #e2e8f0;
+            text-align: left;
         }
         .dropdown.active .dropdown-content {
             display: block;
@@ -86,16 +112,53 @@
         .dropdown-content input[type="checkbox"] {
             margin-right: 6px;
         }
+
+        /* Kart Tasarımları */
+        .card {
+            background: white;
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--primary);
+        }
+        .q-header {
+            font-weight: bold;
+            cursor: pointer;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+        .a-content {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            color: #444;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .btn-copy {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- Header Alanı: Ad Soyad, Arama, Filtreler ve Ara Butonu Bir Arada -->
     <div class="header">
+        <input id="kullaniciInput" type="text" placeholder="Adınız Soyadınız">
         <input id="search" type="search" placeholder="Sorularda veya cevaplarda ara (örn: depo, hata, yetki)...">
         
+        <!-- Filtreler Açılır Menüsü -->
         <div class="dropdown">
-            <button class="dropbtn"><span>🔍 Filtreler</span> <span>▼</span></button>
+            <button type="button" class="dropbtn"><span>🔍 Filtreler</span> <span>▼</span></button>
             <div class="dropdown-content" id="filterContainer">
                 <h4>PROJE</h4>
                 <label><input type="checkbox" class="proj-filter" value="Vestel"> Vestel </label>
@@ -115,17 +178,27 @@
                 <label><input type="checkbox" class="tag-filter" value="Ahb"> Ahb </label>
             </div>
         </div>
+
+        <button type="button" class="btn-ara" onclick="triggerSearch()">Ara</button>
     </div>
 
-    <div id="countDisplay" style="margin-bottom: 15px; font-size: 14px; color: #666;"></div>
+    <div id="countDisplay" style="margin-bottom: 15px; font-size: 14px; color: #666; font-weight: 600;"></div>
 
     <!-- Soru Kartları Alanı -->
     <div id="cardContainer">
-        <!-- Örnek Kart -->
+        <!-- Örnek Kart 1 -->
         <div class="card" data-project="Genel" data-tags="Depo Tanımı">
             <div class="q-header" onclick="toggleCard(this)">S: Diva'da Depo Tanımlama kuralları nelerdir?</div>
             <div class="a-content" style="display:none;">
-                <div class="a">Yeni depo tanımlama taleplerinde destek ekibi tarafından kurallar uygulanır.</div>
+                <div class="a">Yeni depo tanımlama taleplerinde destek ekibi tarafından hiyerarşik kurallar uygulanır.</div>
+                <button class="btn-copy" onclick="copyValue(this)">Cevabı Kopyala</button>
+            </div>
+        </div>
+        <!-- Örnek Kart 2 -->
+        <div class="card" data-project="Samsung" data-tags="Ceva/Sub">
+            <div class="q-header" onclick="toggleCard(this)">S: Sub ekranında Açık konum da olan servis kaydı iptal edilmek istendiğinde Already Completed uyarısı alınması durumunda alınacak aksiyon nedir?</div>
+            <div class="a-content" style="display:none;">
+                <div class="a">Çağrının statüsü Açık konumunda ise L2 ekibine gönderilip statüsünün tamamlandıya çekilmesi istenmelidir.</div>
                 <button class="btn-copy" onclick="copyValue(this)">Cevabı Kopyala</button>
             </div>
         </div>
@@ -136,6 +209,7 @@
     const searchInput = document.getElementById('search');
     const filterContainer = document.getElementById('filterContainer');
     const countDisplay = document.getElementById('countDisplay');
+    const kullaniciInput = document.getElementById('kullaniciInput');
 
     function toggleCard(header) {
         const content = header.nextElementSibling;
@@ -155,7 +229,7 @@
             const cardProj = (card.getAttribute('data-project') || "").toLowerCase();
             const cardTags = (card.getAttribute('data-tags') || "").toLowerCase();
 
-            const searchMatch = cardText.includes(query);
+            const searchMatch = query === "" || cardText.includes(query);
             const projMatch = selectedProj.length === 0 || selectedProj.some(p => cardProj.includes(p));
             const tagMatch = selectedTags.length === 0 || selectedTags.some(t => cardTags.includes(t));
 
@@ -164,9 +238,29 @@
                 count++;
             } else {
                 card.style.display = "none";
+                card.querySelector('.a-content').style.display = 'none';
             }
         });
         if(countDisplay) countDisplay.innerText = `Toplam ${count} soru listeleniyor`;
+    }
+
+    // "Ara" butonuna basıldığında hem arama yapar hem de Google E-Tabloya log atar
+    function triggerSearch() {
+        runFilters();
+        
+        const kullanici = kullaniciInput ? kullaniciInput.value.trim() : "Bilinmiyor";
+        const aramaMetni = searchInput ? searchInput.value.trim() : "";
+
+        // Google Apps Script / Flask loglama Endpoint'ine istek gönder
+        fetch('/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                kullanici: kullanici || "Misafir",
+                islem: "ARAMA",
+                detay: "Aranan kelime: " + (aramaMetni || "Tümü / Filtreli")
+            })
+        }).catch(err => console.log("Log hatası:", err));
     }
 
     function copyValue(btn) {
@@ -185,10 +279,16 @@
         setTimeout(() => { btn.innerText = originalText; }, 1500);
     }
 
-    if(searchInput) searchInput.addEventListener('input', runFilters);
+    // Arama kutusunda Enter'a basıldığında arama yapsın
+    if(searchInput) {
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') triggerSearch();
+        });
+    }
+
     if(filterContainer) filterContainer.addEventListener('change', runFilters);
-    
-    // Dropdown Açma/Kapatma Mantığı
+
+    // Dropdown Menü Açma/Kapatma Mantığı
     document.addEventListener("DOMContentLoaded", function() {
         const dropbtn = document.querySelector(".dropbtn");
         const dropdown = document.querySelector(".dropdown");
