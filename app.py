@@ -7,7 +7,7 @@ import requests
 app = Flask(__name__)
 
 # Google Apps Script Web App URL Adresiniz
-GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbwU8Qps5spwN2c6XrCgXMK_SoNhA94pXgAnMP96I1Ah4Xzwp2dkx7W6b2VY9frn3fY/exec"
+GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbv-IH2KDKTtjynnXPrs1B4SHkWKCG-WjnuyI65n68vM2r-n141vjHjop0ElyVuyvCT"
 
 # Verileri JSON dosyasından yükle
 def verileri_yukle():
