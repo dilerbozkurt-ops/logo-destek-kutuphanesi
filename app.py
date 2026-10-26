@@ -184,29 +184,37 @@ def index():
     veriler = verileri_yukle()
     sonuçlar = []
 
-    # Eğer herhangi bir arama kelimesi, proje veya etiket seçildiyse filtrelemeyi çalıştır
+    # Herhangi bir arama veya filtre kriteri seçilmişse filtreleme yap
     if query or selected_projs or selected_tags:
         log_detay = f"Sorgu: {query} | Projeler: {','.join(selected_projs)} | Etiketler: {','.join(selected_tags)}"
         log_gonder(user_name, "ARAMA", log_detay)
 
         for item in veriler:
-            item_html = item.get('answer_html', '') + " " + item.get('question', '')
-            item_text = item_html.lower()
+            item_html = item.get('answer_html', '')
+            item_question = item.get('question', '')
+            full_content = (item_question + " " + item_html).lower()
             
-            # Arama metni kontrolü (Eğer arama kutusu doluysa eşleşmeli)
-            matches_query = not query or query.lower() in item_text
+            # 1. Arama metni kontrolü
+            matches_query = not query or query.lower() in full_content
 
-            # Proje kontrolü (JSON içerisindeki 'project' alanı ile tam eşleşme)
+            # 2. Proje filtresi kontrolü (HTML içeriğindeki badge-project veya metin içinde aranır)
             matches_proj = True
             if selected_projs:
-                item_proj = str(item.get('project', '')).strip().lower()
-                matches_proj = any(p.strip().lower() == item_proj for p in selected_projs)
+                matches_proj = False
+                for p in selected_projs:
+                    # HTML içinde badge-project rozeti veya doğrudan proje adı geçiyor mu kontrol et
+                    if p.lower() in full_content:
+                        matches_proj = True
+                        break
 
-            # Kategori/Etiket kontrolü
+            # 3. Kategori/Etiket filtresi kontrolü
             matches_tag = True
             if selected_tags:
-                item_tags = str(item.get('tags', '')).lower()
-                matches_tag = any(t.lower() in item_text or t.lower() in item_tags for t in selected_tags)
+                matches_tag = False
+                for t in selected_tags:
+                    if t.lower() in full_content:
+                        matches_tag = True
+                        break
 
             if matches_query and matches_proj and matches_tag:
                 sonuçlar.append(item)
