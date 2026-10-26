@@ -184,7 +184,6 @@ def index():
     veriler = verileri_yukle()
     sonuçlar = []
 
-    # Herhangi bir arama veya filtre kriteri seçilmişse filtreleme yap
     if query or selected_projs or selected_tags:
         log_detay = f"Sorgu: {query} | Projeler: {','.join(selected_projs)} | Etiketler: {','.join(selected_tags)}"
         log_gonder(user_name, "ARAMA", log_detay)
@@ -192,27 +191,29 @@ def index():
         for item in veriler:
             item_html = item.get('answer_html', '')
             item_question = item.get('question', '')
-            full_content = (item_question + " " + item_html).lower()
+            full_text = (item_question + " " + item_html).lower()
             
             # 1. Arama metni kontrolü
-            matches_query = not query or query.lower() in full_content
+            matches_query = not query or query.lower() in full_text
 
-            # 2. Proje filtresi kontrolü (HTML içeriğindeki badge-project veya metin içinde aranır)
+            # 2. Proje kontrolü: Sadece gerçek badge-project rozeti içindeki değere bakar (rastgele metinleri elemez)
             matches_proj = True
             if selected_projs:
                 matches_proj = False
                 for p in selected_projs:
-                    # HTML içinde badge-project rozeti veya doğrudan proje adı geçiyor mu kontrol et
-                    if p.lower() in full_content:
+                    # Regex ile sadece badge-project sınıfı içinde geçen tam proje adını eşleştirir
+                    pattern = rf'<span[^>]*class=["\'][^"\']*badge-project[^"\']*["\'][^>]*>\s*{p}\s*</span>'
+                    if re.search(pattern, item_html, re.IGNORECASE):
                         matches_proj = True
                         break
 
-            # 3. Kategori/Etiket filtresi kontrolü
+            # 3. Kategori/Etiket kontrolü
             matches_tag = True
             if selected_tags:
                 matches_tag = False
                 for t in selected_tags:
-                    if t.lower() in full_content:
+                    tag_pattern = rf'<span[^>]*class=["\'][^"\']*badge-tag[^"\']*["\'][^>]*>.*?\s*{t}\s*</span>'
+                    if re.search(tag_pattern, item_html, re.IGNORECASE) or t.lower() in full_text:
                         matches_tag = True
                         break
 
