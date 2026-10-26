@@ -10,11 +10,17 @@ app = Flask(__name__)
 # Google Apps Script Web App URL Adresiniz
 GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzv-lH2KDKTtjynnXPrs1B4SHkWKCG-Wjnuyl65n68vM2r-n141vjHJop0ElyVuyvCT/exec"
 
-# Verileri JSON dosyasından yükle
+# Verileri JSON dosyasından yükle ve answer_html içindeki tekrar eden başlıkları temizle
 def verileri_yukle():
     if os.path.exists('kutuphane_verileri.json'):
         with open('kutuphane_verileri.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
+            veriler = json.load(f)
+            for item in veriler:
+                html = item.get('answer_html', '')
+                # Baş taraftaki "S: ... ▼" tekrarını otomatik temizle
+                cleaned_html = re.sub(r'^\s*S:\s*.*?(?:▼|&#9660;)\s*', '', html, flags=re.DOTALL | re.IGNORECASE)
+                item['answer_html'] = cleaned_html
+            return veriler
     return []
 
 # Logları doğrudan Google E-Tablo'ya gönderen fonksiyon
@@ -122,10 +128,8 @@ HTML_TEMPLATE = """
         <div class="space-y-4">
             {% for item in sonuçlar %}
             <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-600">
-                <!-- Sadece burada soru tek olarak gösteriliyor -->
                 <h2 class="text-xl font-semibold text-gray-800 mb-3">{{ item.question }}</h2>
                 
-                <!-- İçerik (Tekrar eden başlıklar arındırılarak basılıyor) -->
                 <div class="text-gray-600 mb-4">
                     {{ item.answer_html | safe }}
                 </div>
