@@ -17,9 +17,7 @@ def verileri_yukle():
             veriler = json.load(f)
             for item in veriler:
                 html = item.get('answer_html', '')
-                # Baş taraftaki "S: ... ▼" tekrarını temizle
                 cleaned_html = re.sub(r'^\s*S:\s*.*?(?:▼|&#9660;)\s*', '', html, flags=re.DOTALL | re.IGNORECASE)
-                # İçerik sonundaki fazladan gelen "Cevabı Kopyala" butonlarını/divlerini temizle
                 cleaned_html = re.sub(r'<button[^>]*class=["\']btn-copy["\'][^>]*>.*?</button>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
                 cleaned_html = re.sub(r'<div class=["\']meta["\']>.*?</div>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
                 item['answer_html'] = cleaned_html.strip()
@@ -137,8 +135,13 @@ HTML_TEMPLATE = """
                     {{ item.answer_html | safe }}
                 </div>
 
-                <!-- Alt Satır: Sol boş, sağ tarafta mor rozetler ve kopyala butonu aynı hizada -->
+                <!-- Alt Satır: Solda orijinal kopyala butonu, sağda mor renkli proje ve etiketler aynı hizada -->
                 <div class="flex flex-wrap justify-between items-center pt-3 border-t border-gray-100 gap-2">
+                    <button onclick="navigator.clipboard.writeText(`{{ item.question }}\n\n{{ item.answer_text }}`)" 
+                            class="bg-purple-100 text-purple-700 px-4 py-2 rounded text-sm font-medium hover:bg-purple-200 transition">
+                        📋 Çözüm Adımlarını Kopyala
+                    </button>
+                    
                     <div class="flex items-center gap-2">
                         {% if item.project %}
                             <span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-1 rounded-full">{{ item.project }}</span>
@@ -147,11 +150,6 @@ HTML_TEMPLATE = """
                             <span class="bg-purple-50 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full">{{ item.tags }}</span>
                         {% endif %}
                     </div>
-                    
-                    <button onclick="navigator.clipboard.writeText(`{{ item.question }}\n\n{{ item.answer_text }}`)" 
-                            class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition flex items-center gap-1.5">
-                        📋 Çözüm Adımlarını Kopyala
-                    </button>
                 </div>
             </div>
             {% else %}
@@ -209,10 +207,8 @@ def index():
             item_question = item.get('question', '')
             full_text = (item_question + " " + item_html).lower()
             
-            # Arama metni kontrolü
             matches_query = not query or query.lower() in full_text
 
-            # Proje kontrolü (Sadece badge-project veya doğru alan)
             matches_proj = True
             if selected_projs:
                 matches_proj = False
@@ -223,7 +219,6 @@ def index():
                         matches_proj = True
                         break
 
-            # Kategori/Etiket kontrolü
             matches_tag = True
             if selected_tags:
                 matches_tag = False
