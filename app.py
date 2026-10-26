@@ -1,3 +1,4 @@
+import re
 from flask import Flask, render_template_string, request, make_response
 import json
 import os
@@ -31,7 +32,7 @@ def log_gonder(kullanici_adi, islem_turu, detay=""):
     except Exception as e:
         print("Log gönderme hatası:", e)
 
-# HTML Arayüz Şablonu (Filtreler Dropdown Entegre Edilmiş Hali)
+# HTML Arayüz Şablonu
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -137,7 +138,6 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        // Dropdown menü açma / kapatma
         const dropbtn = document.getElementById('dropbtn');
         const dropdown = document.querySelector('.dropdown');
 
@@ -176,21 +176,29 @@ def index():
     sonuçlar = []
 
     if query or selected_projs or selected_tags:
-        # Arama ve filtreleme detayını loglama için hazırla
         log_detay = f"Sorgu: {query} | Projeler: {','.join(selected_projs)} | Etiketler: {','.join(selected_tags)}"
         log_gonder(user_name, "ARAMA", log_detay)
 
         for item in veriler:
-            item_text = (item.get('question', '') + " " + item.get('answer_text', '') + " " + item.get('answer_html', '')).lower()
+            item_html = item.get('answer_html', '') + " " + item.get('question', '')
+            item_text = item_html.lower()
             
             # Arama metni kontrolü
             matches_query = not query or query.lower() in item_text
 
-            # Proje kontrolü
-            matches_proj = not selected_projs or any(p.lower() in item_text for p in selected_projs)
+            # Proje kontrolü (Doğrudan badge-project sınıfını regex ile arar)
+            matches_proj = True
+            if selected_projs:
+                matches_proj = False
+                for p in selected_projs:
+                    pattern = rf'<span class=["\']badge-project["\']>\s*{p}\s*</span>'
+                    if re.search(pattern, item_html, re.IGNORECASE):
+                        matches_proj = True
+                        break
 
             # Kategori/Etiket kontrolü
-            matches_tag = not selected_tags or any(t.lower() in item_text for t in selected_tags)
+            item_tags = item.get('tags', '').lower()
+            matches_tag = not selected_tags or any(t.lower() in item_text or t.lower() in item_tags for t in selected_tags)
 
             if matches_query and matches_proj and matches_tag:
                 sonuçlar.append(item)
