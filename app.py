@@ -122,8 +122,14 @@ HTML_TEMPLATE = """
         <div class="space-y-4">
             {% for item in sonuçlar %}
             <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-600">
-                <h2 class="text-xl font-semibold text-gray-800 mb-2">{{ item.question }}</h2>
-                <div class="text-gray-600 mb-4">{{ item.answer_html | safe }}</div>
+                <!-- Sadece burada soru tek olarak gösteriliyor -->
+                <h2 class="text-xl font-semibold text-gray-800 mb-3">{{ item.question }}</h2>
+                
+                <!-- İçerik (Tekrar eden başlıklar arındırılarak basılıyor) -->
+                <div class="text-gray-600 mb-4">
+                    {{ item.answer_html | safe }}
+                </div>
+
                 <button onclick="navigator.clipboard.writeText(`{{ item.question }}\n\n{{ item.answer_text }}`)" 
                         class="bg-purple-100 text-purple-700 px-4 py-2 rounded text-sm font-medium hover:bg-purple-200 transition">
                     📋 Çözüm Adımlarını Kopyala
@@ -186,7 +192,7 @@ def index():
             # Arama metni kontrolü
             matches_query = not query or query.lower() in item_text
 
-            # Proje kontrolü (Doğrudan JSON içindeki 'project' alanını baz alır)
+            # Proje kontrolü
             matches_proj = True
             if selected_projs:
                 item_proj = str(item.get('project', '')).strip().lower()
