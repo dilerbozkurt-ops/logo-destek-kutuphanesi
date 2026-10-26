@@ -186,18 +186,14 @@ def index():
             # Arama metni kontrolü
             matches_query = not query or query.lower() in item_text
 
-            # Proje kontrolü (Doğrudan badge-project sınıfını regex ile arar)
+            # Proje kontrolü (Doğrudan JSON içindeki 'project' alanını baz alır)
             matches_proj = True
             if selected_projs:
-                matches_proj = False
-                for p in selected_projs:
-                    pattern = rf'<span class=["\']badge-project["\']>\s*{p}\s*</span>'
-                    if re.search(pattern, item_html, re.IGNORECASE):
-                        matches_proj = True
-                        break
+                item_proj = str(item.get('project', '')).strip().lower()
+                matches_proj = any(p.strip().lower() == item_proj for p in selected_projs)
 
             # Kategori/Etiket kontrolü
-            item_tags = item.get('tags', '').lower()
+            item_tags = str(item.get('tags', '')).lower()
             matches_tag = not selected_tags or any(t.lower() in item_text or t.lower() in item_tags for t in selected_tags)
 
             if matches_query and matches_proj and matches_tag:
