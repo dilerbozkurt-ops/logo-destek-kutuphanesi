@@ -17,7 +17,6 @@ def verileri_yukle():
             veriler = json.load(f)
             for item in veriler:
                 html = item.get('answer_html', '')
-                # Baş taraftaki "S: ... ▼" tekrarını otomatik temizle
                 cleaned_html = re.sub(r'^\s*S:\s*.*?(?:▼|&#9660;)\s*', '', html, flags=re.DOTALL | re.IGNORECASE)
                 item['answer_html'] = cleaned_html
             return veriler
@@ -185,6 +184,7 @@ def index():
     veriler = verileri_yukle()
     sonuçlar = []
 
+    # Eğer herhangi bir arama kelimesi, proje veya etiket seçildiyse filtrelemeyi çalıştır
     if query or selected_projs or selected_tags:
         log_detay = f"Sorgu: {query} | Projeler: {','.join(selected_projs)} | Etiketler: {','.join(selected_tags)}"
         log_gonder(user_name, "ARAMA", log_detay)
@@ -193,18 +193,20 @@ def index():
             item_html = item.get('answer_html', '') + " " + item.get('question', '')
             item_text = item_html.lower()
             
-            # Arama metni kontrolü
+            # Arama metni kontrolü (Eğer arama kutusu doluysa eşleşmeli)
             matches_query = not query or query.lower() in item_text
 
-            # Proje kontrolü
+            # Proje kontrolü (JSON içerisindeki 'project' alanı ile tam eşleşme)
             matches_proj = True
             if selected_projs:
                 item_proj = str(item.get('project', '')).strip().lower()
                 matches_proj = any(p.strip().lower() == item_proj for p in selected_projs)
 
             # Kategori/Etiket kontrolü
-            item_tags = str(item.get('tags', '')).lower()
-            matches_tag = not selected_tags or any(t.lower() in item_text or t.lower() in item_tags for t in selected_tags)
+            matches_tag = True
+            if selected_tags:
+                item_tags = str(item.get('tags', '')).lower()
+                matches_tag = any(t.lower() in item_text or t.lower() in item_tags for t in selected_tags)
 
             if matches_query and matches_proj and matches_tag:
                 sonuçlar.append(item)
