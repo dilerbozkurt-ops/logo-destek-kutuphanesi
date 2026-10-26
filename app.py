@@ -10,15 +10,19 @@ app = Flask(__name__)
 # Google Apps Script Web App URL Adresiniz
 GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzv-lH2KDKTtjynnXPrs1B4SHkWKCG-Wjnuyl65n68vM2r-n141vjHJop0ElyVuyvCT/exec"
 
-# Verileri JSON dosyasından yükle ve answer_html içindeki tekrar eden başlıkları temizle
+# Verileri JSON dosyasından yükle ve answer_html içindeki tekrar eden başlıkları/fazla kopyala butonlarını temizle
 def verileri_yukle():
     if os.path.exists('kutuphane_verileri.json'):
         with open('kutuphane_verileri.json', 'r', encoding='utf-8') as f:
             veriler = json.load(f)
             for item in veriler:
                 html = item.get('answer_html', '')
+                # Baş taraftaki "S: ... ▼" tekrarını temizle
                 cleaned_html = re.sub(r'^\s*S:\s*.*?(?:▼|&#9660;)\s*', '', html, flags=re.DOTALL | re.IGNORECASE)
-                item['answer_html'] = cleaned_html
+                # İçerik sonundaki fazladan gelen "Cevabı Kopyala" butonlarını/divlerini temizle
+                cleaned_html = re.sub(r'<button[^>]*class=["\']btn-copy["\'][^>]*>.*?</button>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
+                cleaned_html = re.sub(r'<div class=["\']meta["\']>.*?</div>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
+                item['answer_html'] = cleaned_html.strip()
             return veriler
     return []
 
@@ -133,10 +137,22 @@ HTML_TEMPLATE = """
                     {{ item.answer_html | safe }}
                 </div>
 
-                <button onclick="navigator.clipboard.writeText(`{{ item.question }}\n\n{{ item.answer_text }}`)" 
-                        class="bg-purple-100 text-purple-700 px-4 py-2 rounded text-sm font-medium hover:bg-purple-200 transition">
-                    📋 Çözüm Adımlarını Kopyala
-                </button>
+                <!-- Alt Satır: Sol boş, sağ tarafta mor rozetler ve kopyala butonu aynı hizada -->
+                <div class="flex flex-wrap justify-between items-center pt-3 border-t border-gray-100 gap-2">
+                    <div class="flex items-center gap-2">
+                        {% if item.project %}
+                            <span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-1 rounded-full">{{ item.project }}</span>
+                        {% endif %}
+                        {% if item.tags %}
+                            <span class="bg-purple-50 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full">{{ item.tags }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    <button onclick="navigator.clipboard.writeText(`{{ item.question }}\n\n{{ item.answer_text }}`)" 
+                            class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition flex items-center gap-1.5">
+                        📋 Çözüm Adımlarını Kopyala
+                    </button>
+                </div>
             </div>
             {% else %}
                 {% if query or selected_projs or selected_tags %}
@@ -193,27 +209,28 @@ def index():
             item_question = item.get('question', '')
             full_text = (item_question + " " + item_html).lower()
             
-            # 1. Arama metni kontrolü
+            # Arama metni kontrolü
             matches_query = not query or query.lower() in full_text
 
-            # 2. Proje kontrolü: Sadece gerçek badge-project rozeti içindeki değere bakar (rastgele metinleri elemez)
+            # Proje kontrolü (Sadece badge-project veya doğru alan)
             matches_proj = True
             if selected_projs:
                 matches_proj = False
                 for p in selected_projs:
-                    # Regex ile sadece badge-project sınıfı içinde geçen tam proje adını eşleştirir
+                    item_proj = str(item.get('project', '')).strip().lower()
                     pattern = rf'<span[^>]*class=["\'][^"\']*badge-project[^"\']*["\'][^>]*>\s*{p}\s*</span>'
-                    if re.search(pattern, item_html, re.IGNORECASE):
+                    if (p.strip().lower() == item_proj) or re.search(pattern, item_html, re.IGNORECASE):
                         matches_proj = True
                         break
 
-            # 3. Kategori/Etiket kontrolü
+            # Kategori/Etiket kontrolü
             matches_tag = True
             if selected_tags:
                 matches_tag = False
                 for t in selected_tags:
+                    item_tags = str(item.get('tags', '')).lower()
                     tag_pattern = rf'<span[^>]*class=["\'][^"\']*badge-tag[^"\']*["\'][^>]*>.*?\s*{t}\s*</span>'
-                    if re.search(tag_pattern, item_html, re.IGNORECASE) or t.lower() in full_text:
+                    if (t.lower() in item_tags) or re.search(tag_pattern, item_html, re.IGNORECASE) or (t.lower() in full_text):
                         matches_tag = True
                         break
 
