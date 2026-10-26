@@ -10,7 +10,7 @@ app = Flask(__name__)
 # Google Apps Script Web App URL Adresiniz
 GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzv-lH2KDKTtjynnXPrs1B4SHkWKCG-Wjnuyl65n68vM2r-n141vjHJop0ElyVuyvCT/exec"
 
-# Verileri JSON dosyasından yükle ve answer_html içindeki tekrar eden başlıkları/fazla kopyala butonlarını temizle
+# Verileri JSON dosyasından yükle, temizle ve kopyalama için düz metin üret
 def verileri_yukle():
     if os.path.exists('kutuphane_verileri.json'):
         with open('kutuphane_verileri.json', 'r', encoding='utf-8') as f:
@@ -21,6 +21,10 @@ def verileri_yukle():
                 cleaned_html = re.sub(r'<button[^>]*class=["\']btn-copy["\'][^>]*>.*?</button>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
                 cleaned_html = re.sub(r'<div class=["\']meta["\']>.*?</div>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
                 item['answer_html'] = cleaned_html.strip()
+                
+                # Kopyalama için HTML taglerinden arındırılmış saf metin oluştur
+                pure_text = re.sub(r'<[^>]+>', '', item['answer_html'])
+                item['clean_copy_text'] = f"{item.get('question', '')}\n\n{pure_text}"
             return veriler
     return []
 
@@ -135,9 +139,9 @@ HTML_TEMPLATE = """
                     {{ item.answer_html | safe }}
                 </div>
 
-                <!-- Alt Satır: Solda orijinal kopyala butonu, sağda mor renkli proje ve etiketler aynı hizada -->
+                <!-- Alt Satır: Solda Çözümü Kopyala, Sağda Mor Renkli Proje/Etiketler Aynı Hizada -->
                 <div class="flex flex-wrap justify-between items-center pt-3 border-t border-gray-100 gap-2">
-                    <button onclick="navigator.clipboard.writeText(`{{ item.question }}\n\n{{ item.answer_text }}`)" 
+                    <button onclick="navigator.clipboard.writeText({{ item.clean_copy_text | tojson }}); alert('Çözüm adımları kopyalandı!');" 
                             class="bg-purple-100 text-purple-700 px-4 py-2 rounded text-sm font-medium hover:bg-purple-200 transition">
                         📋 Çözüm Adımlarını Kopyala
                     </button>
