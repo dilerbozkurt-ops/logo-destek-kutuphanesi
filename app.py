@@ -10,19 +10,23 @@ app = Flask(__name__)
 # Google Apps Script Web App URL Adresiniz
 GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzv-lH2KDKTtjynnXPrs1B4SHkWKCG-Wjnuyl65n68vM2r-n141vjHJop0ElyVuyvCT/exec"
 
-# Verileri JSON dosyasından yükle, temizle ve kopyalama için düz metin üret
+# Verileri JSON dosyasından yükle, temizle ve kopyalama için güvenli düz metin üret
 def verileri_yukle():
     if os.path.exists('kutuphane_verileri.json'):
         with open('kutuphane_verileri.json', 'r', encoding='utf-8') as f:
             veriler = json.load(f)
             for item in veriler:
                 html = item.get('answer_html', '')
+                # Baş taraftaki tekrar eden soru metnini temizle
                 cleaned_html = re.sub(r'^\s*S:\s*.*?(?:▼|&#9660;)\s*', '', html, flags=re.DOTALL | re.IGNORECASE)
-                cleaned_html = re.sub(r'<button[^>]*class=["\']btn-copy["\'][^>]*>.*?</button>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
+                # Eski butonları ve meta div'lerini temizle
+                cleaned_html = re.sub(r'<button[^>]*>.*?</button>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
                 cleaned_html = re.sub(r'<div class=["\']meta["\']>.*?</div>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
+                # Kart yapısının dışarı taşmasını önlemek için bozuk </div> etiketlerini temizle
+                cleaned_html = cleaned_html.replace('</div>', '')
                 item['answer_html'] = cleaned_html.strip()
                 
-                # Kopyalama için HTML taglerinden arındırılmış güvenli saf metin
+                # Kopyalama için HTML taglerinden arındırılmış temiz metin
                 pure_text = re.sub(r'<[^>]+>', '', item['answer_html'])
                 item['clean_copy_text'] = f"{item.get('question', '')}\n\n{pure_text}"
             return veriler
@@ -132,7 +136,7 @@ HTML_TEMPLATE = """
         <!-- Kart Yapısı -->
         <div class="space-y-4">
             {% for item in sonuçlar %}
-            <!-- KARTIN İÇİ: bg-white ve p-6 kapsayıcısının TAM İÇİNDEYİZ -->
+            <!-- KARTIN İÇİ: Tüm elemanlar güvenle bu div içerisindedir -->
             <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-600">
                 <h2 class="text-xl font-semibold text-gray-800 mb-3">{{ item.question }}</h2>
                 
@@ -140,9 +144,9 @@ HTML_TEMPLATE = """
                     {{ item.answer_html | safe }}
                 </div>
 
-                <!-- Kartın Alt Kısmı: Sol tarafta Çözüm Adımlarını Kopyala, Sağ tarafta Mor Proje/Etiketler Aynı Hizada -->
+                <!-- Kartın Alt Kısmı: Sol tarafta Kopyala, Sağ tarafta Mor Proje/Etiketler Aynı Hizada -->
                 <div class="flex flex-wrap justify-between items-center pt-3 border-t border-gray-100 gap-2 mt-4">
-                    <button onclick="navigator.clipboard.writeText({{ item.clean_copy_text | tojson }}); alert('Çözüm adımları başarıyla kopyalandı!');" 
+                    <button type="button" onclick="copyContent(this)" data-copy="{{ item.clean_copy_text | tojson }}" 
                             class="bg-purple-100 text-purple-700 px-4 py-2 rounded text-sm font-medium hover:bg-purple-200 transition">
                         📋 Çözüm Adımlarını Kopyala
                     </button>
@@ -184,6 +188,21 @@ HTML_TEMPLATE = """
             dropdown.addEventListener('click', function(e) {
                 e.stopPropagation();
             });
+        }
+
+        // Güvenli kopyalama fonksiyonu
+        function copyContent(btn) {
+            try {
+                const textToCopy = JSON.parse(btn.getAttribute('data-copy'));
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    alert('Çözüm adımları başarıyla kopyalandı!');
+                }).catch(err => {
+                    console.error('Kopyalama hatası:', err);
+                    alert('Kopyalama başarısız oldu.');
+                });
+            } catch (e) {
+                console.error('JSON parse hatası:', e);
+            }
         }
     </script>
 </body>
