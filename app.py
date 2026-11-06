@@ -22,7 +22,7 @@ def verileri_yukle():
                 cleaned_html = re.sub(r'<div class=["\']meta["\']>.*?</div>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
                 item['answer_html'] = cleaned_html.strip()
                 
-                # Kopyalama için HTML taglerinden arındırılmış saf metin oluştur
+                # Kopyalama için HTML taglerinden arındırılmış güvenli saf metin
                 pure_text = re.sub(r'<[^>]+>', '', item['answer_html'])
                 item['clean_copy_text'] = f"{item.get('question', '')}\n\n{pure_text}"
             return veriler
@@ -132,6 +132,7 @@ HTML_TEMPLATE = """
         <!-- Kart Yapısı -->
         <div class="space-y-4">
             {% for item in sonuçlar %}
+            <!-- KARTIN İÇİ: bg-white ve p-6 kapsayıcısının TAM İÇİNDEYİZ -->
             <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-600">
                 <h2 class="text-xl font-semibold text-gray-800 mb-3">{{ item.question }}</h2>
                 
@@ -139,9 +140,9 @@ HTML_TEMPLATE = """
                     {{ item.answer_html | safe }}
                 </div>
 
-                <!-- Alt Satır: Solda Çözümü Kopyala, Sağda Mor Renkli Proje/Etiketler Aynı Hizada -->
-                <div class="flex flex-wrap justify-between items-center pt-3 border-t border-gray-100 gap-2">
-                    <button onclick="navigator.clipboard.writeText({{ item.clean_copy_text | tojson }}); alert('Çözüm adımları kopyalandı!');" 
+                <!-- Kartın Alt Kısmı: Sol tarafta Çözüm Adımlarını Kopyala, Sağ tarafta Mor Proje/Etiketler Aynı Hizada -->
+                <div class="flex flex-wrap justify-between items-center pt-3 border-t border-gray-100 gap-2 mt-4">
+                    <button onclick="navigator.clipboard.writeText({{ item.clean_copy_text | tojson }}); alert('Çözüm adımları başarıyla kopyalandı!');" 
                             class="bg-purple-100 text-purple-700 px-4 py-2 rounded text-sm font-medium hover:bg-purple-200 transition">
                         📋 Çözüm Adımlarını Kopyala
                     </button>
