@@ -10,20 +10,17 @@ app = Flask(__name__)
 # Google Apps Script Web App URL Adresiniz
 GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzv-lH2KDKTtjynnXPrs1B4SHkWKCG-Wjnuyl65n68vM2r-n141vjHJop0ElyVuyvCT/exec"
 
-# Verileri JSON dosyasından yükle, temizle ve kopyalama için güvenli düz metin üret
+# Verileri JSON dosyasından yükle ve içeriği güvenli hale getir
 def verileri_yukle():
     if os.path.exists('kutuphane_verileri.json'):
         with open('kutuphane_verileri.json', 'r', encoding='utf-8') as f:
             veriler = json.load(f)
             for item in veriler:
                 html = item.get('answer_html', '')
-                # Baş taraftaki tekrar eden soru metnini temizle
+                # Baş taraftaki soru tekrarlarını ve eski buton/meta etiketlerini temizle
                 cleaned_html = re.sub(r'^\s*S:\s*.*?(?:▼|&#9660;)\s*', '', html, flags=re.DOTALL | re.IGNORECASE)
-                # Eski butonları ve meta div'lerini temizle
                 cleaned_html = re.sub(r'<button[^>]*>.*?</button>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
                 cleaned_html = re.sub(r'<div class=["\']meta["\']>.*?</div>', '', cleaned_html, flags=re.DOTALL | re.IGNORECASE)
-                # Kart yapısının dışarı taşmasını önlemek için bozuk </div> etiketlerini temizle
-                cleaned_html = cleaned_html.replace('</div>', '')
                 item['answer_html'] = cleaned_html.strip()
                 
                 # Kopyalama için HTML taglerinden arındırılmış temiz metin
@@ -133,30 +130,29 @@ HTML_TEMPLATE = """
             <p class="text-gray-600 mb-4">Sonuçlar için <strong>{{ sonuçlar|length }}</strong> kayıt bulundu.</p>
         {% endif %}
 
-        <!-- Kart Yapısı -->
-        <div class="space-y-4">
+        <!-- Kartlar Listesi (clear-fix ve boşluklar ile iç içe geçme önlendi) -->
+        <div class="space-y-6">
             {% for item in sonuçlar %}
-            <!-- KARTIN İÇİ: Tüm elemanlar güvenle bu div içerisindedir -->
-            <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-600">
+            <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-purple-600 clear-both overflow-hidden">
                 <h2 class="text-xl font-semibold text-gray-800 mb-3">{{ item.question }}</h2>
                 
-                <div class="text-gray-600 mb-4">
+                <div class="text-gray-600 mb-4 leading-relaxed">
                     {{ item.answer_html | safe }}
                 </div>
 
                 <!-- Kartın Alt Kısmı: Sol tarafta Kopyala, Sağ tarafta Mor Proje/Etiketler Aynı Hizada -->
-                <div class="flex flex-wrap justify-between items-center pt-3 border-t border-gray-100 gap-2 mt-4">
+                <div class="flex flex-wrap justify-between items-center pt-4 mt-4 border-t border-gray-100 gap-2">
                     <button type="button" onclick="copyContent(this)" data-copy="{{ item.clean_copy_text | tojson }}" 
-                            class="bg-purple-100 text-purple-700 px-4 py-2 rounded text-sm font-medium hover:bg-purple-200 transition">
+                            class="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition">
                         📋 Çözüm Adımlarını Kopyala
                     </button>
                     
                     <div class="flex items-center gap-2">
                         {% if item.project %}
-                            <span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-1 rounded-full">{{ item.project }}</span>
+                            <span class="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">{{ item.project }}</span>
                         {% endif %}
                         {% if item.tags %}
-                            <span class="bg-purple-50 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full">{{ item.tags }}</span>
+                            <span class="bg-purple-50 text-purple-700 text-xs font-medium px-3 py-1 rounded-full">{{ item.tags }}</span>
                         {% endif %}
                     </div>
                 </div>
@@ -190,7 +186,7 @@ HTML_TEMPLATE = """
             });
         }
 
-        // Güvenli kopyalama fonksiyonu
+        // Güvenli ve hatasız kopyalama fonksiyonu
         function copyContent(btn) {
             try {
                 const textToCopy = JSON.parse(btn.getAttribute('data-copy'));
