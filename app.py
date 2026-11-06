@@ -130,17 +130,17 @@ HTML_TEMPLATE = """
             <p class="text-gray-600 mb-4">Sonuçlar için <strong>{{ sonuçlar|length }}</strong> kayıt bulundu.</p>
         {% endif %}
 
-        <!-- Kartlar Listesi (clear-fix ve boşluklar ile iç içe geçme önlendi) -->
+        <!-- Kartlar Listesi -->
         <div class="space-y-6">
             {% for item in sonuçlar %}
-            <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-purple-600 clear-both overflow-hidden">
+            <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-purple-600 relative overflow-hidden clear-both">
                 <h2 class="text-xl font-semibold text-gray-800 mb-3">{{ item.question }}</h2>
                 
-                <div class="text-gray-600 mb-4 leading-relaxed">
+                <div class="text-gray-600 mb-4 leading-relaxed overflow-x-auto">
                     {{ item.answer_html | safe }}
                 </div>
 
-                <!-- Kartın Alt Kısmı: Sol tarafta Kopyala, Sağ tarafta Mor Proje/Etiketler Aynı Hizada -->
+                <!-- Kartın İç Alt Kısmı: Sol tarafta Kopyala, Sağ tarafta Mor Proje/Etiketler Aynı Hizada -->
                 <div class="flex flex-wrap justify-between items-center pt-4 mt-4 border-t border-gray-100 gap-2">
                     <button type="button" onclick="copyContent(this)" data-copy="{{ item.clean_copy_text | tojson }}" 
                             class="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition">
@@ -186,19 +186,38 @@ HTML_TEMPLATE = """
             });
         }
 
-        // Güvenli ve hatasız kopyalama fonksiyonu
+        // Kesin çözüm kopyalama fonksiyonu
         function copyContent(btn) {
             try {
                 const textToCopy = JSON.parse(btn.getAttribute('data-copy'));
-                navigator.clipboard.writeText(textToCopy).then(() => {
-                    alert('Çözüm adımları başarıyla kopyalandı!');
-                }).catch(err => {
-                    console.error('Kopyalama hatası:', err);
-                    alert('Kopyalama başarısız oldu.');
-                });
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        alert('Çözüm adımları başarıyla kopyalandы!');
+                    }).catch(err => {
+                        fallbackCopy(textToCopy);
+                    });
+                } else {
+                    fallbackCopy(textToCopy);
+                }
             } catch (e) {
-                console.error('JSON parse hatası:', e);
+                console.error('Kopyalama hatası:', e);
             }
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('Çözüm adımları başarıyla kopyalandı!');
+            } catch (err) {
+                alert('Kopyalama başarısız oldu.');
+            }
+            document.body.removeChild(textarea);
         }
     </script>
 </body>
